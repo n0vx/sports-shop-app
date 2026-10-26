@@ -1,0 +1,26 @@
+# Локальный MySQL для разработки:  docker compose up -d
+# Данные хранятся в томе sport_store_data и переживают перезапуск контейнера.
+# Остановить: docker compose down   (добавьте -v, чтобы удалить и данные).
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: sport_store_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: sport_store_root_pass
+      MYSQL_DATABASE: sport_store
+      MYSQL_USER: sport_store
+      MYSQL_PASSWORD: sport_store_pass
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "127.0.0.1:3306:3306"   # доступен только с этого компьютера
+    volumes:
+      - sport_store_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-psport_store_root_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  sport_store_data:
