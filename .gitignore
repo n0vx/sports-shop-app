@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+instance/
+.pytest_cache/
+config.ini
+store.db
