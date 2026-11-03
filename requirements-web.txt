@@ -1,6 +1,0 @@
-# Веб-версия (Flask). Десктопная версия использует requirements.txt
-Flask>=3.0
-python-dotenv>=1.0
-mysql-connector-python>=8.0
-Pillow>=9.1
-gunicorn>=22.0; sys_platform != "win32"
