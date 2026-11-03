@@ -1,0 +1,44 @@
+{# Окно «Оформление»: тема и акцентный цвет. Логика — в static/js/app.js, расчёт цветов — на сервере. #}
+<dialog id="appearance" class="dialog" data-action="{{ url_for('shop.appearance') }}" aria-labelledby="appearance-title">
+  <div class="dialog-head">
+    <h2 id="appearance-title">Оформление</h2>
+    <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
+  </div>
+  <p class="muted">Выберите режим и цвет — изменения применяются сразу{% if user %} и сохраняются в вашем профиле{% endif %}.</p>
+
+  <div class="dialog-section">
+    <div class="section-title">Режим</div>
+    <div class="segmented">
+      <button type="button" class="btn btn-secondary" data-theme-choice="light" aria-pressed="{{ 'true' if theme == 'light' else 'false' }}">☀ Светлая</button>
+      <button type="button" class="btn btn-secondary" data-theme-choice="dark" aria-pressed="{{ 'true' if theme == 'dark' else 'false' }}">☾ Тёмная</button>
+    </div>
+  </div>
+
+  <div class="dialog-section">
+    <div class="section-title">Цвет</div>
+    <div class="swatches">
+      {% for name, color in accent_presets %}
+        <button type="button" class="swatch" data-color="{{ color }}" aria-label="{{ name }}" title="{{ name }}"
+                aria-pressed="{{ 'true' if accent == color else 'false' }}"></button>
+      {% endfor %}
+    </div>
+    <label class="custom-color">
+      <span>Свой цвет</span>
+      <input type="color" id="custom-accent" value="{{ accent|lower }}" aria-label="Выбрать свой цвет">
+    </label>
+  </div>
+
+  <div class="dialog-section">
+    <div class="section-title">Так это выглядит</div>
+    <div class="preview">
+      <strong class="preview-price">12&nbsp;999&nbsp;₽</strong>
+      <span class="btn btn-secondary">Категория</span>
+      <span class="btn btn-primary">В корзину</span>
+    </div>
+  </div>
+
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-secondary" data-reset-appearance>По умолчанию</button>
+    <button type="button" class="btn btn-primary" data-close>Готово</button>
+  </div>
+</dialog>

@@ -1,0 +1,26 @@
+{# Общие кусочки интерфейса #}
+
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{# адрес текущей страницы: после действия вернём пользователя туда же #}
+{% macro back() %}<input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">{% endmacro %}
+
+{# плитка товара: фото или значок-заглушка #}
+{% macro tile(p, extra='') %}
+<div class="tile tile-{{ cat_class(p.category) }} {{ extra }}">
+  {% if p.image_token %}
+    <img src="{{ url_for('shop.product_photo', pid=p.id, v=p.image_token) }}" alt="{{ p.name }}" loading="lazy" decoding="async">
+  {% else %}
+    <span class="tile-emoji" aria-hidden="true">{{ p.emoji or category_emoji.get(p.category, '🏅') }}</span>
+  {% endif %}
+  {{ caller() if caller else '' }}
+</div>
+{% endmacro %}
+
+{% macro field(label, name, value='', type='text', attrs='', hint='') %}
+<label class="field">
+  <span class="field-label">{{ label }}</span>
+  <input type="{{ type }}" name="{{ name }}" value="{{ value }}" {{ attrs|safe }}>
+  {% if hint %}<span class="field-hint">{{ hint }}</span>{% endif %}
+</label>
+{% endmacro %}

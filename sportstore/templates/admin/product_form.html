@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, tile with context %}
+{% set editing = product is not none %}
+{% block title %}{{ 'Изменить товар' if editing else 'Новый товар' }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">{{ 'Изменить товар' if editing else 'Новый товар' }}</h1>
+
+  <form class="panel form-panel" method="post" enctype="multipart/form-data" novalidate
+        action="{{ url_for('admin.product_edit', pid=product.id) if editing else url_for('admin.product_new') }}">
+    {{ csrf() }}
+
+    {% if errors %}
+    <div class="form-error" role="alert">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="photo-block">
+      <div class="photo-preview">
+        {% if editing %}
+          {{ tile(product, 'tile-preview') }}
+        {% else %}
+          <div class="tile tile-{{ cat_class(values.category) }} tile-preview"><span class="tile-emoji" aria-hidden="true">{{ values.emoji or category_emoji.get(values.category, '🏅') }}</span></div>
+        {% endif %}
+      </div>
+      <div class="photo-controls">
+        <div class="field-label">Фото товара</div>
+        <p class="muted small">JPG, PNG, WEBP, BMP или GIF до 20 МБ. Фото сожмётся автоматически, из файла удалятся метаданные (в том числе геолокация).</p>
+        <label class="btn btn-secondary">
+          <span id="photo-btn-text">{{ 'Заменить фото…' if editing and product.image_token else 'Выбрать фото…' }}</span>
+          <input class="visually-hidden" type="file" name="photo" id="photo-input" accept="{{ photo_accept }}">
+        </label>
+        <span class="muted small" id="photo-name"></span>
+        {% if editing and product.image_token %}
+        <label class="check"><input type="checkbox" name="remove_photo" value="1"> <span>Убрать текущее фото</span></label>
+        {% endif %}
+      </div>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Название</span>
+      <input name="name" value="{{ values.name or '' }}" required minlength="2" maxlength="80" autofocus>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Категория</span>
+      <select name="category" class="select select-block">
+        {% for c in categories %}<option value="{{ c }}" {{ 'selected' if values.category == c }}>{{ c }}</option>{% endfor %}
+      </select>
+    </label>
+
+    <div class="two-cols">
+      <label class="field">
+        <span class="field-label">Цена, ₽</span>
+        <input name="price" value="{{ values.price if values.price is not none else '' }}" inputmode="numeric" required>
+      </label>
+      <label class="field">
+        <span class="field-label">Остаток, шт.</span>
+        <input name="stock" value="{{ values.stock if values.stock is not none else '' }}" inputmode="numeric" required>
+      </label>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Значок-эмодзи <span class="muted">(показывается, пока нет фото)</span></span>
+      <input name="emoji" value="{{ values.emoji or '' }}" maxlength="4">
+    </label>
+
+    <div class="btn-row">
+      <a class="btn btn-secondary" href="{{ url_for('shop.index') }}">Отмена</a>
+      <button class="btn btn-primary">Сохранить</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

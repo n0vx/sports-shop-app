@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container narrow center-col error-page">
+  <div class="error-code">{{ code }}</div>
+  <h1 class="page-title center">{{ title }}</h1>
+  <p class="muted center">{{ message }}</p>
+  <div class="btn-row">
+    <a class="btn btn-primary" href="{{ url_for('shop.index') }}">В каталог</a>
+    {% if code in (400, 503, 500) %}<a class="btn btn-secondary" href="">Обновить страницу</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

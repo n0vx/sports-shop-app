@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, tile with context %}
+{% block title %}Корзина — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">Корзина</h1>
+
+  {% if not lines %}
+  <div class="empty">
+    <div class="empty-title">Здесь пока пусто</div>
+    <p class="muted">Добавьте товары из каталога</p>
+    <a class="btn btn-primary" href="{{ url_for('shop.index') }}">Вернуться в каталог</a>
+  </div>
+  {% else %}
+  <div class="cart-layout">
+    <ul class="cart-list">
+      {% for line in lines %}
+      {% set p = line.p %}
+      <li class="cart-row">
+        {{ tile(p, 'tile-thumb') }}
+        <div class="cart-info">
+          <div class="cart-name">{{ p.name }}</div>
+          <div class="muted small">{{ p.price|money }} за шт.</div>
+        </div>
+        <form class="qty" method="post" action="{{ url_for('shop.cart_update', pid=p.id) }}">
+          {{ csrf() }}{% if use_bonus %}<input type="hidden" name="bonus" value="1">{% endif %}
+          <button class="qty-btn" name="qty" value="{{ line.qty - 1 }}" aria-label="Меньше">−</button>
+          <span class="qty-value" aria-label="Количество">{{ line.qty }}</span>
+          <button class="qty-btn" name="qty" value="{{ line.qty + 1 }}" aria-label="Больше" {{ 'disabled' if line.qty >= p.stock }}>+</button>
+        </form>
+        <div class="cart-sum">{{ line.sum|money }}</div>
+        <form method="post" action="{{ url_for('shop.cart_remove', pid=p.id) }}">
+          {{ csrf() }}{% if use_bonus %}<input type="hidden" name="bonus" value="1">{% endif %}
+          <button class="icon-btn" aria-label="Убрать «{{ p.name }}» из корзины">✕</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <aside class="summary">
+      <div class="sum-row"><span class="muted">Товары</span><span>{{ total|money }}</span></div>
+
+      {% if user %}
+      <form method="get" action="{{ url_for('shop.cart') }}" class="bonus-form">
+        <label class="check">
+          <input type="checkbox" name="bonus" value="1" data-autosubmit {{ 'checked' if use_bonus }} {{ 'disabled' if max_spend == 0 }}>
+          <span>Списать баллы (доступно {{ balance }}, максимум {{ max_spend }})</span>
+        </label>
+        <noscript><button class="btn btn-secondary btn-sm">Применить</button></noscript>
+      </form>
+      {% endif %}
+      {% if spend %}<div class="sum-row"><span class="muted">Списано баллами</span><span class="ok">− {{ spend|money }}</span></div>{% endif %}
+      <div class="sum-row"><span class="muted">Будет начислено</span><span class="ok">+ {{ earned }} б.</span></div>
+      <hr>
+      <div class="sum-row sum-total"><span>К оплате</span><span>{{ paid|money }}</span></div>
+
+      {% if user %}
+      <form method="post" action="{{ url_for('shop.checkout') }}">
+        {{ csrf() }}<input type="hidden" name="use_bonus" value="{{ '1' if use_bonus else '0' }}">
+        <button class="btn btn-primary btn-block btn-lg">Оформить заказ · {{ paid|money }}</button>
+      </form>
+      {% else %}
+      <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('auth.login', next=url_for('shop.cart')) }}">Войти и оформить заказ</a>
+      <p class="muted small center">Баллы и история заказов доступны после входа. Новым покупателям — {{ welcome_bonus }} баллов в подарок.</p>
+      {% endif %}
+    </aside>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

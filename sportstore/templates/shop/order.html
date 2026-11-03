@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Заказ № {{ order.id }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container narrow center-col">
+  <div class="success-mark" aria-hidden="true">✓</div>
+  <h1 class="page-title center">Заказ оформлен</h1>
+  <p class="muted center">Заказ № {{ order.id }} · {{ order.created_at|dt }}</p>
+
+  <div class="panel">
+    <ul class="order-items">
+      {% for it in order['items'] %}
+        <li><span>{{ it.name }} × {{ it.qty }}</span><span>{{ (it.price * it.qty)|money }}</span></li>
+      {% endfor %}
+    </ul>
+    <hr>
+    <div class="sum-row"><span class="muted">Сумма заказа</span><span>{{ order.total|money }}</span></div>
+    <div class="sum-row"><span class="muted">Списано баллами</span><span>− {{ order.bonus_spent|money }}</span></div>
+    <div class="sum-row sum-total"><span>Оплачено</span><span>{{ order.paid|money }}</span></div>
+    <div class="sum-row"><span class="muted">Начислено баллов</span><span class="ok">+ {{ order.bonus_earned }}</span></div>
+  </div>
+
+  <div class="btn-row">
+    <a class="btn btn-primary" href="{{ url_for('shop.index') }}">В каталог</a>
+    <a class="btn btn-secondary" href="{{ url_for('shop.profile') }}">История заказов</a>
+  </div>
+</div>
+{% endblock %}

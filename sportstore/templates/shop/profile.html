@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf with context %}
+{% block title %}Профиль — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">Профиль</h1>
+
+  <section class="panel profile-head">
+    <div>
+      <div class="profile-name">{{ user.username }}</div>
+      <div class="muted">{{ 'Администратор' if user.role == 'admin' else 'Покупатель' }}</div>
+    </div>
+    <div class="bonus-box">
+      <div class="bonus-value">{{ user.bonuses }}</div>
+      <div class="muted small">баллов · 1 балл = 1 ₽ · до {{ max_bonus_pct }}% суммы заказа</div>
+    </div>
+  </section>
+
+  <h2 class="section-h">История заказов</h2>
+  {% if not orders %}
+    <p class="muted">Заказов пока нет. <a href="{{ url_for('shop.index') }}">Перейти в каталог</a></p>
+  {% else %}
+  <ul class="orders">
+    {% for o in orders %}
+    <li class="panel order-card">
+      <div class="order-head">
+        <a href="{{ url_for('shop.order', oid=o.id) }}"><strong>Заказ № {{ o.id }}</strong></a>
+        <span class="muted small">{{ o.created_at|dt }}</span>
+      </div>
+      <div class="muted small">{% for it in o['items'] %}{{ it.name }} × {{ it.qty }}{{ ', ' if not loop.last }}{% endfor %}</div>
+      <div class="order-foot small">
+        Оплачено <strong>{{ o.paid|money }}</strong> · начислено {{ o.bonus_earned }} б.{% if o.bonus_spent %} · списано {{ o.bonus_spent }} б.{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('auth.logout') }}" class="logout">
+    {{ csrf() }}
+    <button class="btn btn-danger btn-block">Выйти из аккаунта</button>
+  </form>
+</div>
+{% endblock %}

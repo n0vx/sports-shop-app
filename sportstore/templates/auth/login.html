@@ -1,0 +1,21 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Вход — {{ app_name }}{% endblock %}
+
+{% block auth_card %}
+<h1>Вход в аккаунт</h1>
+<p class="muted">Рады видеть вас снова</p>
+<form method="post" action="{{ url_for('auth.login', next=next or None) }}" novalidate>
+  {{ csrf() }}
+  <label class="field">
+    <span class="field-label">Логин</span>
+    <input name="username" value="{{ username }}" autocomplete="username" autocapitalize="none" autofocus required maxlength="64">
+  </label>
+  <label class="field">
+    <span class="field-label">Пароль</span>
+    <input type="password" name="password" autocomplete="current-password" required maxlength="256">
+  </label>
+  {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+  <button class="btn btn-primary btn-block btn-lg">Войти</button>
+</form>
+<p class="auth-switch">Нет аккаунта? <a href="{{ url_for('auth.register', next=next or None) }}">Зарегистрироваться</a></p>
+{% endblock %}

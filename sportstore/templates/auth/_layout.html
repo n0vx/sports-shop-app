@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf with context %}
+{% block body_class %}auth-page{% endblock %}
+{% block header %}{% endblock %}
+
+{% block content %}
+<div class="auth-split">
+  <aside class="auth-brand">
+    <div class="auth-brand-inner">
+      <a class="auth-logo" href="{{ url_for('shop.index') }}" aria-label="На главную">
+        <span class="auth-logo-a">SPORT</span><span class="auth-logo-b">STORE</span>
+      </a>
+      <p class="auth-tagline">Всё для спорта в одном месте</p>
+      <ul class="auth-perks">
+        <li>{{ bonus_rate_pct }}% баллами с каждой покупки</li>
+        <li>Оплата баллами до {{ max_bonus_pct }}% заказа</li>
+        <li>Актуальные остатки на складе</li>
+      </ul>
+    </div>
+  </aside>
+  <section class="auth-main">
+    <button type="button" class="btn btn-secondary auth-appearance" data-open-dialog="appearance" aria-label="Оформление: тема и цвет">
+      <span aria-hidden="true">🎨</span><span class="hide-sm"> Оформление</span>
+    </button>
+    <div class="auth-card">
+      {% block auth_card %}{% endblock %}
+    </div>
+  </section>
+</div>
+{% endblock %}

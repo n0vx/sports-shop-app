@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, back, tile with context %}
+{% set is_admin = user and user.role == 'admin' %}
+{% block title %}{{ cat or 'Каталог' }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="toolbar">
+    <nav class="chips" aria-label="Категории">
+      <a class="chip {{ 'is-active' if not cat }}" href="{{ url_for('shop.index', q=q or None, sort=sort if sort != 'popular' else None) }}">Все</a>
+      {% for c in categories %}
+        <a class="chip {{ 'is-active' if cat == c }}" href="{{ url_for('shop.index', cat=c, q=q or None, sort=sort if sort != 'popular' else None) }}">{{ c }}</a>
+      {% endfor %}
+    </nav>
+    {% if is_admin %}
+      <a class="btn btn-primary" href="{{ url_for('admin.product_new') }}">＋ Новый товар</a>
+    {% endif %}
+  </div>
+
+  <div class="subbar">
+    <div class="muted" id="found-count">
+      {{ products|length }} {{ products|length|plural('товар,товара,товаров') }}{% if q %} по запросу «{{ q }}»{% endif %}
+    </div>
+    <form method="get" action="{{ url_for('shop.index') }}" class="sort-form">
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+      {% if cat %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+      <label for="sort">Сортировка</label>
+      <select name="sort" id="sort" class="select" data-autosubmit>
+        {% for key, title in sorts %}<option value="{{ key }}" {{ 'selected' if sort == key }}>{{ title }}</option>{% endfor %}
+      </select>
+      <noscript><button class="btn btn-secondary">Применить</button></noscript>
+    </form>
+  </div>
+
+  {% if products %}
+  <div class="grid">
+    {% for p in products %}
+    <article class="card">
+      {% call tile(p, 'tile-card') %}
+        {% if p.stock == 0 %}<span class="badge badge-muted">Нет в наличии</span>
+        {% elif p.stock <= low_stock %}<span class="badge badge-accent">Осталось {{ p.stock }}</span>{% endif %}
+        {% if is_admin %}
+        <form class="photo-quick" method="post" action="{{ url_for('admin.photo_set', pid=p.id) }}" enctype="multipart/form-data">
+          {{ csrf() }}{{ back() }}
+          <label class="pill">
+            {{ 'Сменить фото' if p.image_token else 'Добавить фото' }}
+            <input class="visually-hidden" type="file" name="photo" accept="{{ photo_accept }}" data-autosubmit>
+          </label>
+        </form>
+        {% endif %}
+      {% endcall %}
+      <div class="card-body">
+        <div class="card-cat">{{ p.category }}</div>
+        <h3 class="card-name">{{ p.name }}</h3>
+        <div class="card-price">{{ p.price|money }}</div>
+        {% if p.stock > 0 %}
+          <form method="post" action="{{ url_for('shop.cart_add', pid=p.id) }}" data-ajax>
+            {{ csrf() }}{{ back() }}
+            <button class="btn btn-primary btn-block">В корзину</button>
+          </form>
+        {% else %}
+          <button class="btn btn-secondary btn-block" disabled>Нет в наличии</button>
+        {% endif %}
+        {% if is_admin %}
+        <div class="card-admin">
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('admin.product_edit', pid=p.id) }}">Изменить</a>
+          <form method="post" action="{{ url_for('admin.product_delete', pid=p.id) }}" data-confirm="Удалить «{{ p.name }}» из каталога?">
+            {{ csrf() }}
+            <button class="btn btn-danger btn-sm">Удалить</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">Ничего не найдено</div>
+    <p class="muted">Попробуйте изменить запрос или выбрать другую категорию</p>
+    <a class="btn btn-secondary" href="{{ url_for('shop.index') }}">Показать весь каталог</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
