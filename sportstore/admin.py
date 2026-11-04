@@ -134,3 +134,91 @@ def photo_delete(pid):
     get_db().remove_product_image(pid)
     flash("Фото удалено", "ok")
     return redirect(safe_next(request.form.get("next")) or url_for("shop.index"))
+
+
+# --------------------------------------------------------------------------- бюджет организации
+
+MAX_MONEY = 1_000_000_000
+
+
+def parse_amount(raw, what="Сумма"):
+    """Целое число рублей от 1 до MAX_MONEY. Возвращает (число, ошибка)."""
+    try:
+        value = int((raw or "").replace(" ", "").replace(" ", ""))
+    except ValueError:
+        return None, f"{what}: введите целое число рублей"
+    if not 0 < value <= MAX_MONEY:
+        return None, f"{what}: от 1 до {MAX_MONEY:,}".replace(",", " ") + " ₽"
+    return value, None
+
+
+def _budget_page():
+    db = get_db()
+    return render_template("admin/budget.html", balance=db.budget_balance(), entries=db.budget_entries(),
+                           products=db.catalog(sort="name"))
+
+
+@bp.get("/budget")
+@admin_required
+def budget():
+    return _budget_page()
+
+
+@bp.post("/budget/deposit")
+@admin_required
+def budget_deposit():
+    amount, error = parse_amount(request.form.get("amount"))
+    note = request.form.get("note", "").strip()[:200] or "Пополнение бюджета"
+    if error:
+        flash(error, "error")
+        return redirect(url_for("admin.budget"))
+    get_db().budget_change(amount, "deposit", note, g.user["id"])
+    flash("Бюджет пополнен", "ok")
+    return redirect(url_for("admin.budget"))
+
+
+@bp.post("/budget/spend")
+@admin_required
+def budget_spend():
+    amount, error = parse_amount(request.form.get("amount"))
+    note = request.form.get("note", "").strip()[:200]
+    if not error and len(note) < 3:
+        error = "Укажите, на что тратится бюджет (от 3 символов)"
+    try:
+        if error:
+            raise ValueError(error)
+        get_db().budget_change(-amount, "expense", note, g.user["id"])
+    except ValueError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Расход записан", "ok")
+    return redirect(url_for("admin.budget"))
+
+
+@bp.post("/budget/restock")
+@admin_required
+def budget_restock():
+    """Закупка товара: списывает qty × цена закупки из бюджета и добавляет qty на склад."""
+    db = get_db()
+    try:
+        pid = int(request.form.get("product_id", ""))
+        qty = int(request.form.get("qty", "").strip())
+        if not 0 < qty <= 100_000:
+            raise ValueError("Количество: от 1 до 100 000 шт.")
+        unit, error = parse_amount(request.form.get("unit_cost"), "Цена закупки за штуку")
+        if error:
+            raise ValueError(error)
+        product = db.get_product(pid)
+        if product is None:
+            raise ValueError("Товар не найден")
+        cost = unit * qty
+        if cost > MAX_MONEY:
+            raise ValueError("Слишком большая сумма закупки")
+        db.budget_change(-cost, "restock", f"Закупка: {product['name']} × {qty} по {unit} ₽", g.user["id"],
+                         product_id=pid, qty=qty)
+    except ValueError as exc:
+        text = str(exc)
+        flash("Выберите товар и введите количество числом" if text.startswith("invalid literal") else text, "error")
+    else:
+        flash(f"Закуплено {qty} шт. на {cost} ₽, остаток на складе обновлён", "ok")
+    return redirect(url_for("admin.budget"))

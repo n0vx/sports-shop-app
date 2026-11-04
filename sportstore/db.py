@@ -241,6 +241,55 @@ class Database:
         row = self._one("SELECT updated_at AS ver, data FROM product_images WHERE product_id=%s", (product_id,))
         return (row["ver"], bytes(row["data"])) if row else None
 
+    # ----- бюджет организации
+    def budget_balance(self):
+        row = self._one("SELECT balance FROM budget WHERE id=1")
+        return int(row["balance"]) if row else 0
+
+    def budget_entries(self, limit=50):
+        return self._all(
+            "SELECT e.*, u.username, p.name AS product_name FROM budget_entries e "
+            "LEFT JOIN users u ON u.id = e.user_id LEFT JOIN products p ON p.id = e.product_id "
+            "ORDER BY e.id DESC LIMIT %s", (int(limit),))
+
+    def budget_change(self, delta, kind, note, user_id, product_id=None, qty=None):
+        """Меняет остаток и пишет журнал одной транзакцией. Тратить больше остатка нельзя.
+
+        Если задан product_id (закупка), остаток товара на складе увеличивается на qty в той же транзакции.
+        Возвращает новый остаток бюджета.
+        """
+        if not delta:
+            raise ValueError("Сумма должна быть больше нуля")
+        with self._conn() as cnx:
+            cur = cnx.cursor(dictionary=True)
+            try:
+                cnx.start_transaction()
+                cur.execute("SELECT balance FROM budget WHERE id=1 FOR UPDATE")
+                row = cur.fetchone()
+                balance = int(row["balance"]) if row else 0
+                if balance + delta < 0:
+                    raise ValueError(f"Недостаточно средств: в бюджете {balance} ₽, нужно {-delta} ₽")
+                if product_id is not None:
+                    cur.execute("SELECT id FROM products WHERE id=%s FOR UPDATE", (product_id,))
+                    if cur.fetchone() is None:
+                        raise ValueError("Товар не найден")
+                    cur.execute("UPDATE products SET stock = stock + %s WHERE id=%s", (qty, product_id))
+                balance += delta
+                cur.execute("UPDATE budget SET balance=%s WHERE id=1", (balance,))
+                cur.execute(
+                    "INSERT INTO budget_entries(kind, amount, balance_after, note, product_id, qty, user_id) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s)", (kind, delta, balance, note, product_id, qty, user_id))
+                cnx.commit()
+                return balance
+            except BaseException:
+                try:
+                    cnx.rollback()
+                except Error:
+                    pass
+                raise
+            finally:
+                cur.close()
+
     # ----- заказы
     def checkout(self, user_id, cart, use_bonuses):
         """Оформляет заказ одной транзакцией. cart: {product_id: qty}.

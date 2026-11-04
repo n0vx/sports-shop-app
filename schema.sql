@@ -61,3 +61,28 @@ CREATE TABLE IF NOT EXISTS product_images (
     updated_at  DATETIME(6)  NOT NULL,
     CONSTRAINT fk_images_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Бюджет организации: одна строка с текущим остатком и журнал операций.
+-- Остаток меняется только вместе с записью в журнале (одной транзакцией) и не может уйти в минус.
+CREATE TABLE IF NOT EXISTS budget (
+    id       TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+    balance  BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT chk_budget_balance CHECK (balance >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO budget(id, balance) VALUES (1, 0);
+
+CREATE TABLE IF NOT EXISTS budget_entries (
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    kind           ENUM('deposit', 'expense', 'restock') NOT NULL,
+    amount         BIGINT       NOT NULL,           -- со знаком: пополнение +, трата −
+    balance_after  BIGINT       NOT NULL,
+    note           VARCHAR(200) NOT NULL DEFAULT '',
+    product_id     INT UNSIGNED NULL,
+    qty            INT UNSIGNED NULL,
+    user_id        INT UNSIGNED NULL,
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_budget_product FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE SET NULL,
+    CONSTRAINT fk_budget_user    FOREIGN KEY (user_id)    REFERENCES users (id)    ON DELETE SET NULL,
+    INDEX idx_budget_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

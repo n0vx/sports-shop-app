@@ -262,3 +262,10 @@ img { max-width: 100%; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 .header-inner > * { min-width: 0; }
+
+/* ---------- бюджет ---------- */
+.budget-forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+.budget-forms .section-h { margin-top: 0; }
+.budget-forms .two-cols { gap: 10px; }
+.neg { color: var(--danger); font-weight: 600; }
+.ledger .order-head { align-items: baseline; }

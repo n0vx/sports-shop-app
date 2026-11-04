@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf with context %}
+{% block title %}Бюджет — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">Бюджет организации</h1>
+
+  <section class="panel profile-head">
+    <div>
+      <div class="muted small">Доступно для трат</div>
+      <div class="bonus-value">{{ balance|money }}</div>
+    </div>
+    <div class="muted small">Видно только администраторам.<br>Потратить больше остатка нельзя.</div>
+  </section>
+
+  <div class="budget-forms">
+    <form class="panel" method="post" action="{{ url_for('admin.budget_deposit') }}">
+      {{ csrf() }}
+      <h2 class="section-h">Пополнить</h2>
+      <label class="field"><span class="field-label">Сумма, ₽</span><input name="amount" inputmode="numeric" required></label>
+      <label class="field"><span class="field-label">Комментарий</span><input name="note" maxlength="200" placeholder="Например, взнос учредителей"></label>
+      <button class="btn btn-primary btn-block">Пополнить</button>
+    </form>
+
+    <form class="panel" method="post" action="{{ url_for('admin.budget_spend') }}">
+      {{ csrf() }}
+      <h2 class="section-h">Потратить</h2>
+      <label class="field"><span class="field-label">Сумма, ₽</span><input name="amount" inputmode="numeric" required></label>
+      <label class="field"><span class="field-label">На что</span><input name="note" maxlength="200" required minlength="3" placeholder="Аренда, реклама, зарплата…"></label>
+      <button class="btn btn-secondary btn-block">Записать расход</button>
+    </form>
+
+    <form class="panel" method="post" action="{{ url_for('admin.budget_restock') }}">
+      {{ csrf() }}
+      <h2 class="section-h">Закупить товар</h2>
+      <label class="field"><span class="field-label">Товар</span>
+        <select name="product_id" class="select select-block" required>
+          {% for p in products %}<option value="{{ p.id }}">{{ p.name }} (на складе {{ p.stock }})</option>{% endfor %}
+        </select>
+      </label>
+      <div class="two-cols">
+        <label class="field"><span class="field-label">Количество, шт.</span><input name="qty" inputmode="numeric" required></label>
+        <label class="field"><span class="field-label">Закупка за 1 шт., ₽</span><input name="unit_cost" inputmode="numeric" required></label>
+      </div>
+      <button class="btn btn-secondary btn-block">Закупить на склад</button>
+    </form>
+  </div>
+
+  <h2 class="section-h">Журнал операций</h2>
+  {% if not entries %}
+    <p class="muted">Операций пока нет.</p>
+  {% else %}
+  <ul class="orders ledger">
+    {% for e in entries %}
+    <li class="panel">
+      <div class="order-head">
+        <span>
+          {% if e.kind == 'deposit' %}➕{% elif e.kind == 'restock' %}📦{% else %}➖{% endif %}
+          {{ e.note or '—' }}
+        </span>
+        <strong class="{{ 'ok' if e.amount > 0 else 'neg' }}">{{ '+' if e.amount > 0 }}{{ e.amount|money }}</strong>
+      </div>
+      <div class="order-foot muted small">{{ e.created_at|dt }} · {{ e.username or 'удалённый пользователь' }} · остаток {{ e.balance_after|money }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}

@@ -168,3 +168,69 @@ def test_appearance_saved_per_user(app, user):
     assert 'data-theme="dark"' in again.get("/").get_data(as_text=True)
     bad = user.c.post("/appearance", json={"accent": "javascript:1"}, headers={"X-CSRF-Token": user.token()})
     assert bad.status_code == 400
+
+
+# ----------------------------------------------------------------------------- бюджет
+
+def test_budget_admin_only(app, user, client):
+    assert client.get("/admin/budget").status_code == 302
+    assert user.get("/admin/budget").status_code == 403
+    for url in ("deposit", "spend", "restock"):
+        assert user.post(f"/admin/budget/{url}", {"amount": "100"}).status_code == 403
+    assert app.extensions["db"].budget_balance() == 0
+    assert "Бюджет" not in user.get("/").get_data(as_text=True).split("Корзина")[0]
+
+
+def test_budget_deposit_and_spend(app, admin):
+    db = app.extensions["db"]
+    assert "Бюджет организации" in admin.get("/admin/budget").get_data(as_text=True)
+    admin.post("/admin/budget/deposit", {"amount": "10 000", "note": "Взнос"})
+    assert db.budget_balance() == 10000
+    admin.post("/admin/budget/spend", {"amount": "2500", "note": "Аренда"})
+    assert db.budget_balance() == 7500
+    html = admin.get("/admin/budget").get_data(as_text=True)
+    assert "Аренда" in html and "Взнос" in html
+
+
+def test_budget_cannot_go_negative_or_take_bad_input(app, admin):
+    db = app.extensions["db"]
+    admin.post("/admin/budget/deposit", {"amount": "1000"})
+    for data in ({"amount": "1001", "note": "Много"}, {"amount": "-5", "note": "Минус"},
+                 {"amount": "abc", "note": "Текст"}, {"amount": "10", "note": ""}):
+        admin.post("/admin/budget/spend", data)
+    assert db.budget_balance() == 1000
+    assert len(db.budget_entries()) == 1
+
+
+def test_budget_restock_updates_stock(app, admin):
+    db = app.extensions["db"]
+    p = db.catalog()[0]
+    admin.post("/admin/budget/deposit", {"amount": "5000"})
+    admin.post("/admin/budget/restock", {"product_id": p["id"], "qty": "10", "unit_cost": "300"})
+    assert db.budget_balance() == 2000
+    assert db.get_product(p["id"])["stock"] == p["stock"] + 10
+    admin.post("/admin/budget/restock", {"product_id": p["id"], "qty": "10", "unit_cost": "300"})  # 3000 > 2000
+    assert db.budget_balance() == 2000
+    assert db.get_product(p["id"])["stock"] == p["stock"] + 10
+    assert db.budget_entries()[0]["kind"] == "restock"
+    assert admin.post("/admin/budget/restock", {"product_id": "999999", "qty": "1", "unit_cost": "1"}).status_code == 302
+    assert db.budget_balance() == 2000
+
+
+def test_budget_concurrent_spend_never_overdraws(app, admin):
+    import threading
+    db = app.extensions["db"]
+    db.budget_change(1000, "deposit", "старт", 1)
+    results = []
+
+    def spend():
+        try:
+            db.budget_change(-300, "expense", "гонка", 1)
+            results.append(True)
+        except ValueError:
+            results.append(False)
+
+    threads = [threading.Thread(target=spend) for _ in range(6)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert sum(results) == 3 and db.budget_balance() == 100
