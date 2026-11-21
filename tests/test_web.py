@@ -234,3 +234,59 @@ def test_budget_concurrent_spend_never_overdraws(app, admin):
     [t.start() for t in threads]
     [t.join() for t in threads]
     assert sum(results) == 3 and db.budget_balance() == 100
+
+
+# ----------------------------------------------------------------------------- массовое изменение цен
+
+def _set_prices(db, prices):
+    ids = [p["id"] for p in db.catalog(sort="name")]
+    for pid, price in zip(ids, prices):
+        p = db.get_product(pid)
+        db.save_product(pid, p["name"], p["category"], price, p["stock"], p["emoji"] or "🏅")
+    return ids
+
+
+def test_prices_admin_only(app, user, client):
+    assert client.get("/admin/prices").status_code == 302
+    assert user.get("/admin/prices").status_code == 403
+    assert user.post("/admin/prices", {"minimum": "250", "target": "500"}).status_code == 403
+
+
+def test_prices_example_from_whiteboard(app, admin):
+    """min = 250, итог = 500: 100 ₽ и 200 ₽ становятся 500 ₽, 1100 ₽ не меняется."""
+    db = app.extensions["db"]
+    ids = _set_prices(db, [100, 200, 1100] + [3000] * 7)
+    r = admin.post("/admin/prices", {"minimum": "250", "target": "500"})
+    assert r.status_code == 302
+    assert [db.get_product(i)["price"] for i in ids[:3]] == [500, 500, 1100]
+    assert all(db.get_product(i)["price"] == 3000 for i in ids[3:])
+    assert "2 шт." in admin.get("/admin/prices").get_data(as_text=True)
+
+
+def test_prices_boundary_is_strictly_less(app, admin):
+    db = app.extensions["db"]
+    ids = _set_prices(db, [249, 250, 251] + [9000] * 7)
+    admin.post("/admin/prices", {"minimum": "250", "target": "500"})
+    assert [db.get_product(i)["price"] for i in ids[:3]] == [500, 250, 251]
+
+
+def test_prices_invalid_input_changes_nothing(app, admin):
+    db = app.extensions["db"]
+    ids = _set_prices(db, [100] * 10)
+    for data in ({"minimum": "", "target": "500"}, {"minimum": "abc", "target": "500"},
+                 {"minimum": "250", "target": "0"}, {"minimum": "-1", "target": "500"},
+                 {"minimum": "500", "target": "250"}):
+        assert admin.post("/admin/prices", data).status_code == 422
+    assert all(db.get_product(i)["price"] == 100 for i in ids)
+
+
+def test_prices_nothing_to_change_and_orders_keep_old_price(app, admin, user):
+    db = app.extensions["db"]
+    ids = _set_prices(db, [100] + [3000] * 9)
+    user.post(f"/cart/add/{ids[0]}")
+    oid = user.post("/cart/checkout").headers["Location"].rsplit("/", 1)[1]
+    assert admin.post("/admin/prices", {"minimum": "50", "target": "500"}).status_code == 302
+    assert db.get_product(ids[0])["price"] == 100
+    admin.post("/admin/prices", {"minimum": "250", "target": "500"})
+    assert db.get_product(ids[0])["price"] == 500
+    assert db.get_order(int(oid), 2)["total"] == 100  # заказ хранит цену на момент покупки

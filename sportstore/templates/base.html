@@ -29,6 +29,7 @@
         <span aria-hidden="true">🎨</span><span class="hide-sm"> Оформление</span>
       </button>
       {% if user and user.role == 'admin' %}
+        <a class="btn btn-secondary" href="{{ url_for('admin.prices') }}" aria-label="Изменение цен"><span aria-hidden="true">🏷️</span><span class="hide-sm"> Цены</span></a>
         <a class="btn btn-secondary" href="{{ url_for('admin.budget') }}" aria-label="Бюджет организации"><span aria-hidden="true">💰</span><span class="hide-sm"> Бюджет</span></a>
       {% endif %}
       {% if user %}
