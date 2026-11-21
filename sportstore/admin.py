@@ -222,3 +222,42 @@ def budget_restock():
     else:
         flash(f"Закуплено {qty} шт. на {cost} ₽, остаток на складе обновлён", "ok")
     return redirect(url_for("admin.budget"))
+
+
+# --------------------------------------------------------------------------- массовое изменение цен
+
+MAX_PRICE = 100_000_000
+
+
+@bp.get("/prices")
+@admin_required
+def prices():
+    return render_template("admin/prices.html", values={}, errors=None)
+
+
+@bp.post("/prices")
+@admin_required
+def prices_apply():
+    """«Пересчёт»: все цены ниже min становятся равны «итог»."""
+    raw_min, raw_target = request.form.get("minimum", ""), request.form.get("target", "")
+    errors = []
+    values = {}
+    for key, raw, label in (("minimum", raw_min, "min"), ("target", raw_target, "Итог")):
+        try:
+            number = int(raw.replace(" ", "").replace(" ", ""))
+            if not 0 < number <= MAX_PRICE:
+                raise ValueError
+            values[key] = number
+        except ValueError:
+            errors.append(f"{label}: введите целое число рублей от 1 до {MAX_PRICE:,}".replace(",", " "))
+    if not errors and values["target"] < values["minimum"]:
+        errors.append("Итог не может быть меньше min: иначе цены не поднимутся, а упадут")
+    if errors:
+        return render_template("admin/prices.html", errors=errors,
+                               values={"minimum": raw_min, "target": raw_target}), 422
+    changed = get_db().raise_prices(values["minimum"], values["target"])
+    if changed:
+        flash(f"Цена {values['target']} ₽ установлена у товаров дешевле {values['minimum']} ₽: {changed} шт.", "ok")
+    else:
+        flash(f"Товаров дешевле {values['minimum']} ₽ нет, ничего не изменилось", "info")
+    return redirect(url_for("admin.prices"))

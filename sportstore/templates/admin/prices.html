@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf with context %}
+{% block title %}Изменение цен — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">Изменение цен</h1>
+
+  <form class="panel form-panel" method="post" novalidate data-confirm="Пересчитать цены? Это изменит цены в каталоге.">
+    {{ csrf() }}
+    <p class="muted">Все товары, у которых цена <strong>ниже</strong> «min», получат цену «Итог». Остальные цены не меняются.
+      Например, min&nbsp;=&nbsp;250 и итог&nbsp;=&nbsp;500: цены 100&nbsp;₽ и 200&nbsp;₽ станут 500&nbsp;₽, а 1&nbsp;100&nbsp;₽ останется как есть.
+      Уже оформленные заказы не меняются.</p>
+
+    {% if errors %}
+    <div class="form-error" role="alert">{% for e in errors %}<div>{{ e }}</div>{% endfor %}</div>
+    {% endif %}
+
+    <div class="two-cols">
+      <label class="field">
+        <span class="field-label">min, ₽</span>
+        <input name="minimum" value="{{ values.minimum or '' }}" inputmode="numeric" required autofocus placeholder="250">
+        <span class="field-hint">Цены ниже этого значения будут изменены</span>
+      </label>
+      <label class="field">
+        <span class="field-label">Итог, ₽</span>
+        <input name="target" value="{{ values.target or '' }}" inputmode="numeric" required placeholder="500">
+        <span class="field-hint">Новая цена для таких товаров</span>
+      </label>
+    </div>
+
+    <div class="btn-row">
+      <a class="btn btn-secondary" href="{{ url_for('shop.index') }}">В каталог</a>
+      <button class="btn btn-primary">Пересчёт</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

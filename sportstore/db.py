@@ -224,6 +224,20 @@ class Database:
                   (name, category, price, stock, emoji, product_id))
         return product_id
 
+    def raise_prices(self, minimum, target):
+        """Всем товарам с ценой ниже `minimum` ставит цену `target` одним запросом.
+
+        Возвращает, сколько товаров изменилось. Цены от `minimum` и выше не трогаются.
+        Уже оформленные заказы не меняются: в них цена сохранена на момент покупки.
+        """
+        with self._conn() as cnx:
+            cur = cnx.cursor()
+            try:
+                cur.execute("UPDATE products SET price=%s WHERE price < %s", (target, minimum))
+                return cur.rowcount
+            finally:
+                cur.close()
+
     def delete_product(self, product_id):
         self._run("DELETE FROM products WHERE id=%s", (product_id,))  # фото удалится каскадом
 
